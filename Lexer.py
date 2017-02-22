@@ -50,7 +50,11 @@ def match_token(key, f):
     if token:
         pass
     elif re_num.match(key):
-        if int(key) > 2147483647:
+        try:
+            if int(key) > 2147483647:
+                FLAG_ILLEGAL_INT = 1
+                return False
+        except ValueError:
             FLAG_ILLEGAL_INT = 1
             return False
         token = 'num(' + key + ')'
