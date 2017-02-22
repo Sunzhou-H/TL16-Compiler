@@ -4,7 +4,7 @@ import re
 
 tl_file = sys.argv[1]
 tok_file = tl_file.split('.')[0] + '.tok'
-print(tok_file)
+
 tl_dict = {'(': 'LP',
            ')': 'RP',
            ':=': 'ASGN',
