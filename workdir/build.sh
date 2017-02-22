@@ -1,0 +1,1 @@
+echo This project is written by python3, please directly run exec.sh file, thanks!
