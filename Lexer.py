@@ -32,8 +32,8 @@ tl_dict = {'(': 'LP',
            'as': 'AS',
            'int': 'INT',
            'bool': 'BOOL',
-           'writeint': 'WRITEINT',
-           'readint': 'READINT',
+           'writeInt': 'WRITEINT',
+           'readInt': 'READINT',
            }
 
 re_num = re.compile(r'^([1-9][0-9]*|0)$')
