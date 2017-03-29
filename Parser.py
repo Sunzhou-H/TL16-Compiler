@@ -229,58 +229,6 @@ def parser(tok_file, ast_file):
                 else:
                     return False
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            def statementSequence():
-                pass
-
-
             program()
         except StopIteration:
             print('Tokens end!')
