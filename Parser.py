@@ -18,7 +18,7 @@ def parser(tok_file, ast_file):
 
             def epsilon():
                 return True
-            # match ident() to ident
+            #todo match ident() to ident
 
             def program():
                 global current_tok
@@ -65,7 +65,6 @@ def parser(tok_file, ast_file):
                     return writeInt()
                 else:
                     return False
-                #  handle SC
 
             def type():
                 global current_tok
