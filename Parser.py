@@ -3,6 +3,22 @@ current_tok = ''
 
 
 class ASTNode(object):
+    def __init__(self, node_type):
+        self.node_type = node_type  # program decl_list decl
+
+# class Program(ASTNode):
+#     __slots__ = ('decls', 'stmt_list')
+#
+#
+# class DeclList(ASTNode):
+#     __slots__ = 'decl'
+#
+#
+# class Decl(ASTNode):
+#     __slots__ = ('ident', 'type_tl')
+
+
+class ParserError(Exception):
     pass
 
 
@@ -21,26 +37,59 @@ def parser(tok_file, ast_file):
                     current_tok = next(source_toks)
                     return True
                 else:
-                    return False
+                    raise ParserError
 
             def epsilon():
                 return True
 
             def program():
                 if current_tok == 'PROGRAM':
-                    return token('PROGRAM') and declaration() and token('BEGIN') and statement_sequence() and \
-                           token('END')
+                    token('PROGRAM')
+                    p = ASTNode('program')
+                    p.decl_list = decl_list()
+                    token('BEGIN')
+                    p.stmt_list = statement_sequence()
+                    token('END')
+                    return p
                 else:
-                    return False
+                    raise ParserError
 
-            def declaration():
+            def decl_list():
                 if current_tok == 'VAR':
-                    return token('VAR') and token('ident(') and token('AS') and type_tl() and token('SC') and \
-                           declaration()
+                    d = ASTNode('decl_list')
+                    d.decls = []
+                    d.decls.append(decl())
+                    d.decls += decl_list().decls
+                    return d
                 elif current_tok == 'BEGIN':
-                    return epsilon()
+                    d = ASTNode('decl_list')
+                    d.decls = []
+                    return d
                 else:
-                    return False
+                    raise ParserError
+
+            def decl():
+                token('VAR')
+                if 'ident(' in current_tok:
+                    d = ASTNode('decl')
+                    d.ident = current_tok.split('(')[1].split(')')[0]
+                else:
+                    raise ParserError
+                token('ident(')
+                token('AS')
+                d.type = type_tl()
+                token('SC')
+                return d
+
+            def type_tl():
+                if current_tok == 'INT':
+                    token('INT')
+                    return 'INT'
+                elif current_tok == 'BOOL':
+                    token('BOOL')
+                    return 'BOOL'
+                else:
+                    raise ParserError
 
             def statement_sequence():
                 if ('ident('in current_tok) or (current_tok in ('IF', 'WHILE', 'WRITEINT')):
@@ -59,14 +108,6 @@ def parser(tok_file, ast_file):
                     return while_statement()
                 elif current_tok == 'WRITEINT':
                     return writeint()
-                else:
-                    return False
-
-            def type_tl():
-                if current_tok == 'INT':
-                    return token('INT')
-                elif current_tok == 'BOOL':
-                    return token('BOOL')
                 else:
                     return False
 
@@ -168,3 +209,5 @@ def parser(tok_file, ast_file):
             program()
         except StopIteration:
             print('Tokens end!')
+        except ParserError:
+            print('PARSER ERROR due to'+current_tok)
