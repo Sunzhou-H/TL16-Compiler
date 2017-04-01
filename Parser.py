@@ -4,18 +4,24 @@ current_tok = ''
 
 class ASTNode(object):
     def __init__(self, node_type):
-        self.node_type = node_type  # program decl_list decl
-
-# class Program(ASTNode):
-#     __slots__ = ('decls', 'stmt_list')
-#
-#
-# class DeclList(ASTNode):
-#     __slots__ = 'decl'
-#
-#
-# class Decl(ASTNode):
-#     __slots__ = ('ident', 'type_tl')
+        self.node_type = node_type
+        # Python is dynamic language, so we can use the single class ASTNode and add necessary information to class
+        # node_type:
+        # program(decl_list, stmt_list)
+        # decl_list(decls)
+        # decl(ident, type)
+        # stmt_list(stmts)
+        # assignment(ident, modify)
+        # readint
+        # if(cond, stmts, ec)
+        # while(cond, stmts)
+        # writeint(expr)
+        # comp(left, op, right)
+        # add(left, op, right)
+        # multi(left, op, right)
+        # ident(ident)
+        # num(num)
+        # boollit(boollit)
 
 
 class ParserError(Exception):
@@ -39,16 +45,13 @@ def parser(tok_file, ast_file):
                 else:
                     raise ParserError
 
-            def epsilon():
-                return True
-
             def program():
                 if current_tok == 'PROGRAM':
                     token('PROGRAM')
                     p = ASTNode('program')
                     p.decl_list = decl_list()
                     token('BEGIN')
-                    p.stmt_list = statement_sequence()
+                    p.stmt_list = stmt_list()
                     token('END')
                     return p
                 else:
@@ -59,6 +62,7 @@ def parser(tok_file, ast_file):
                     d = ASTNode('decl_list')
                     d.decls = []
                     d.decls.append(decl())
+                    token('SC')
                     d.decls += decl_list().decls
                     return d
                 elif current_tok == 'BEGIN':
@@ -78,7 +82,6 @@ def parser(tok_file, ast_file):
                 token('ident(')
                 token('AS')
                 d.type = type_tl()
-                token('SC')
                 return d
 
             def type_tl():
@@ -91,13 +94,20 @@ def parser(tok_file, ast_file):
                 else:
                     raise ParserError
 
-            def statement_sequence():
+            def stmt_list():
                 if ('ident('in current_tok) or (current_tok in ('IF', 'WHILE', 'WRITEINT')):
-                    return statement() and token('SC') and statement_sequence()
+                    s = ASTNode('stmt_list')
+                    s.stmts = []
+                    s.stmts.append(statement())
+                    token('SC')
+                    s.stmts += stmt_list().stmts
+                    return s
                 elif current_tok in ('END', 'ELSE'):
-                    return epsilon()
+                    s = ASTNode('stmt_list')
+                    s.stmts = []
+                    return s
                 else:
-                    return False
+                    raise ParserError
 
             def statement():
                 if 'ident('in current_tok:
@@ -109,102 +119,169 @@ def parser(tok_file, ast_file):
                 elif current_tok == 'WRITEINT':
                     return writeint()
                 else:
-                    return False
+                    raise ParserError
 
             def assignment():
                 if 'ident('in current_tok:
-                    return token('ident(') and token('ASGN') and assignment_modified()
+                    a = ASTNode('assignment')
+                    i = ASTNode('ident')
+                    i.ident = current_tok.split('(')[1].split(')')[0]
+                    a.ident = i
+                    token('ident(')
+                    token('ASGN')
+                    a.modify = assignment_modified()
+                    return a
                 else:
-                    return False
-
-            def if_statement():
-                if current_tok == 'IF':
-                    return token('IF') and expression() and token('THEN') and statement_sequence() and else_clause() \
-                           and token('END')
-                else:
-                    return False
-
-            def while_statement():
-                if current_tok == 'WHILE':
-                    return token('WHILE') and expression() and token('DO') and statement_sequence() and token('END')
-                else:
-                    return False
-
-            def writeint():
-                if current_tok == 'WRITEINT':
-                    return token('WRITEINT') and expression()
-                else:
-                    return False
+                    raise ParserError
 
             def assignment_modified():
                 if any(tok in current_tok for tok in ('ident(', 'num(', 'boollit(', 'LP')):
                     return expression()
                 elif current_tok == 'READINT':
-                    return token('READINT')
+                    r = ASTNode('readint')
+                    token('READINT')
+                    return r
                 else:
-                    return False
+                    raise ParserError
+
+            def if_statement():
+                if current_tok == 'IF':
+                    token('IF')
+                    i = ASTNode('if')
+                    i.cond = expression()
+                    token('THEN')
+                    i.stmts = stmt_list()
+                    i.ec = else_clause()
+                    token('END')
+                    return i
+                else:
+                    raise ParserError
+
+            def while_statement():
+                if current_tok == 'WHILE':
+                    token('WHILE')
+                    w = ASTNode('while')
+                    w.cond = expression()
+                    token('DO')
+                    w.stmts = stmt_list()
+                    token('END')
+                    return w
+                else:
+                    raise ParserError
+
+            def writeint():
+                if current_tok == 'WRITEINT':
+                    token('WRITEINT')
+                    w = ASTNode('writeint')
+                    w.expr = expression()
+                    return w
+                else:
+                    raise ParserError
 
             def expression():
                 if any(tok in current_tok for tok in ('ident(', 'num(', 'boollit(', 'LP')):
-                    return simple_expression() and comp()
+                    se = simple_expression()
+                    e = comp()
+                    if e:
+                        e.left = se
+                        return e
+                    else:
+                        return se
                 else:
-                    return False
+                    raise ParserError
 
             def else_clause():
                 if current_tok == 'ELSE':
-                    return token('ELSE') and statement_sequence()
+                    token('ELSE')
+                    return stmt_list()
                 elif current_tok == 'END':
-                    return epsilon()
+                    return stmt_list()
                 else:
-                    return False
+                    raise ParserError
 
             def simple_expression():
                 if any(tok in current_tok for tok in ('ident(', 'num(', 'boollit(', 'LP')):
-                    return term() and add()
+                    t = term()
+                    a = add()
+                    if a:
+                        a.left = t
+                        return a
+                    else:
+                        return t
                 else:
-                    return False
+                    raise ParserError
 
             def comp():
                 if 'COMPARE(' in current_tok:
-                    return token('COMPARE(') and expression()
+                    c = ASTNode('comp')
+                    c.op = current_tok.split('(')[1].split(')')[0]
+                    token('COMPARE(')
+                    c.right = expression()
+                    return c
                 elif current_tok in ('SC', 'THEN', 'DO'):
-                    return epsilon()
+                    return None
                 else:
-                    return False
+                    raise ParserError
 
             def term():
                 if any(tok in current_tok for tok in ('ident(', 'num(', 'boollit(', 'LP')):
-                    return factor() and multi()
+                    f = factor()
+                    m = multi()
+                    if m:
+                        m.left = f
+                        return m
+                    else:
+                        return f
                 else:
-                    return False
+                    raise ParserError
 
             def add():
                 if 'ADDITIVE(' in current_tok:
-                    return token('ADDITIVE(') and simple_expression()
+                    a = ASTNode('add')
+                    a.op = current_tok.split('(')[1].split(')')[0]
+                    token('ADDITIVE(')
+                    a.right = simple_expression()
+                    return a
                 elif (current_tok in ('SC', 'THEN', 'DO', 'RP')) or ('COMPARE(' in current_tok):
-                    return epsilon()
+                    return None
                 else:
-                    return False
+                    raise ParserError
 
             def factor():
                 if 'ident(' in current_tok:
-                    return token('ident(')
+                    i = ASTNode('ident')
+                    i.ident = current_tok.split('(')[1].split(')')[0]
+                    token('ident(')
+                    return i
                 elif 'num(' in current_tok:
-                    return token('num(')
+                    n = ASTNode('num')
+                    n.num = current_tok.split('(')[1].split(')')[0]
+                    token('num(')
+                    return n
                 elif 'boollit(' in current_tok:
-                    return token('boollit(')
+                    b = ASTNode('boollit')
+                    b.boollit = current_tok.split('(')[1].split(')')[0]
+                    token('boollit(')
+                    return b
                 elif current_tok == 'LP':
-                    return token('LP') and simple_expression() and token('RP')
+                    token('LP')
+                    se = simple_expression()
+                    token('RP')
+                    return se
                 else:
-                    return False
+                    raise ParserError
 
             def multi():
                 if 'MULTIPLICATIVE(' in current_tok:
-                    return token('MULTIPLICATIVE(') and term()
+                    m = ASTNode('multi')
+                    m.op = current_tok.split('(')[1].split(')')[0]
+                    token('MULTIPLICATIVE(')
+                    m.right = term()
+                    return m
                 elif any(tok in current_tok for tok in ('ADDITIVE(', 'COMPARE(', 'SC', 'THEN', 'DO', 'RP')):
-                    return epsilon()
+                    return None
                 else:
-                    return False
+                    raise ParserError
 
             program()
         except StopIteration:
