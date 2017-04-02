@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 current_tok = ''
 symbol_table = {}
-node_num = 0
+node_num = 1
 
 
 def parser(tok_file, ast_file):
@@ -29,6 +29,7 @@ def parser(tok_file, ast_file):
     class Decl(ASTNode):
         def __init__(self):
             super(ASTNode, self).__init__()
+            self.type_error = False
 
     # stmt_list(stmts)
     class StmtList(ASTNode):
@@ -129,89 +130,170 @@ def parser(tok_file, ast_file):
     # Type Check Visitor
     class TypeCheckVisitor(Visitor):
         def visit_Program(self, node, *args, **kwargs):
+            global node_num
+            args[0].write('digraph TL16Ast {'+'\n')
+            args[0].write('  ordering=out;'+'\n')
+            args[0].write('  node [shape = box, style = filled, fillcolor="white"];'+'\n')
+            current_num = node_num
+            args[0].write('  n'+str(current_num)+' [label="program",shape=box]'+'\n')
             if node.decl_list.decls:
-                self.visit(node.decl_list)
+                node_num += 1
+                args[0].write('  n' + str(current_num) + ' -> '+'n'+str(node_num)+'\n')
+                self.visit(node.decl_list, *args)
             if node.stmt_list.stmts:
-                self.visit(node.stmt_list)
-
+                node_num += 1
+                args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+                self.visit(node.stmt_list, *args)
+            args[0].write('}')
 
         def visit_DeclList(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            args[0].write('  n'+str(current_num)+' [label="decl list",shape=box]'+'\n')
             for de in node.decls:
-                self.visit(de)
+                node_num += 1
+                args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+                self.visit(de, *args)
 
         def visit_Decl(self, node, *args, **kwargs):
             global symbol_table
+            global node_num
+            current_num = node_num
             if node.ident in symbol_table:
                 print("TYPE ERROR due to identifier '"+node.ident+"' has been defined more than once")
+                node.type_error = True
             symbol_table[node.ident] = node.type
+            args[0].write('  n' + str(current_num) + ' [label="decl:\''+node.ident+'\':'+node.type+'",shape=box')
+            if node.type_error:
+                args[0].write(',fillcolor="/pastel13/1"')
+            args[0].write(']' + '\n')
 
-        def visit_StmtList(self, node):
+        def visit_StmtList(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            args[0].write('  n' + str(current_num) + ' [label="stmt list",shape=box]' + '\n')
             for stmt in node.stmts:
-                self.visit(stmt)
+                node_num += 1
+                args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+                self.visit(stmt, *args)
 
-        def visit_Assignment(self, node):
-            l = self.visit(node.ident)
-            r = self.visit(node.modify)
+        def visit_Assignment(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            l = self.visit(node.ident, *args)
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            r = self.visit(node.modify, *args)
             if not (l and r):
                 return False
             elif l != r:
                 node.type_error = True
                 print("TYPE ERROR due to '", l, ':=', r, "'")
+            args[0].write('  n' + str(current_num) + ' [label=":=",shape=box')
+            if node.type_error:
+                args[0].write(',fillcolor="/pastel13/1"')
+            args[0].write(']' + '\n')
 
-        def visit_Readint(self, node):
+        def visit_Readint(self, node, *args, **kwargs):
+            global node_num
+            args[0].write('  n' + str(node_num) + ' [label="readInt:int",shape=box]' + '\n')
             node.type = 'int'
             return node.type
 
-        def visit_If(self, node):
-            self.visit(node.cond)
-            if node.stmt_list.stmts:
-                self.visit(node.stmt_list)
+        def visit_If(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            args[0].write('  n' + str(current_num) + ' [label="if",shape=box]' + '\n')
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            self.visit(node.cond, *args)
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            self.visit(node.stmt_list)
             if node.ec.stmts:
-                self.visit(node.ec)
+                node_num += 1
+                args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+                self.visit(node.ec, *args)
 
-        def visit_While(self, node):
-            self.visit(node.cond)
+        def visit_While(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            args[0].write('  n' + str(current_num) + ' [label="while",shape=box]' + '\n')
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            self.visit(node.cond, *args)
             if node.stmt_list.stmts:
-                self.visit(node.stmt_list)
+                node_num += 1
+                args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+                self.visit(node.stmt_list, *args)
 
-        def visit_Writeint(self, node):
-            out = self.visit(node.expr)
+        def visit_Writeint(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            out = self.visit(node.expr, *args)
             if not out:
-                return False
+                pass
             elif out != 'int':
                 node.type_error = True
+            args[0].write('  n' + str(current_num) + ' [label="writeInt",shape=box')
+            if node.type_error:
+                args[0].write(',fillcolor="/pastel13/1"')
+            args[0].write(']' + '\n')
 
-        def visit_Expr(self, node):
-            l = self.visit(node.left)
-            r = self.visit(node.right)
+        def visit_Expr(self, node, *args, **kwargs):
+            global node_num
+            current_num = node_num
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            l = self.visit(node.left, *args)
+            node_num += 1
+            args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
+            r = self.visit(node.right, *args)
+            args[0].write('  n' + str(current_num) + ' [label="'+node.op)
             if not (l and r):
+                args[0].write('",shape=box]' + '\n')
                 return False
             elif 'bool' in (r, l):
                 node.type_error = True
                 print("TYPE ERROR due to '"+node.op+"'")
+                args[0].write('",shape=box,fillcolor="/pastel13/1"]' + '\n')
                 return False
             elif node.__class__.__name__ == 'Comp':
                 node.type = 'bool'
+                args[0].write(':bool",shape=box]' + '\n')
                 return node.type
             else:
                 node.type = 'int'
+                args[0].write(':int",shape=box]' + '\n')
                 return node.type
 
-        def visit_Ident(self, node):
-            t = symbol_table.get(node.name)
+        def visit_Ident(self, node, *args, **kwargs):
+            global node_num
+            args[0].write('  n' + str(node_num) + ' [label="' + node.name)
+            t = symbol_table.get(node.name, *args)
             if t:
                 node.type = t
+                args[0].write(':' + node.type + '",shape=box]')
                 return t
             else:
                 print('TYPE ERROR due to undefined identifier( ' + node.name + ')')
+                args[0].write('",shape=box,fillcolor="/pastel13/1"]'+'\n')
                 return False
 
-        def visit_Num(self, node):
+        def visit_Num(self, node, *args, **kwargs):
+            global node_num
             node.type = 'int'
+            args[0].write('  n' + str(node_num) + ' [label="' + node.name+':'+node.type+'",shape=box]')
             return node.type
 
-        def visit_Boollit(self, node):
+        def visit_Boollit(self, node, *args, **kwargs):
+            global node_num
             node.type = 'bool'
+            args[0].write('  n' + str(node_num) + ' [label="' + node.name + ':' + node.type + '",shape=box]')
             return node.type
 
     # Error
@@ -233,7 +315,7 @@ def parser(tok_file, ast_file):
             try:
                 current_tok = next(source_toks)
             except StopIteration:
-                print('Tokens end!')
+                print('Parser done!')
             return True
         else:
             raise ParserError
@@ -478,7 +560,6 @@ def parser(tok_file, ast_file):
 
     try:
         ast_tree = program()
-        print(ast_tree)
     except ParserError:
         print('PARSER ERROR due to '+current_tok)
         return False

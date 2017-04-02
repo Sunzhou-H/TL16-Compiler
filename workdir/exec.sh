@@ -1,1 +1,1 @@
-python3 ../Lexer.py $1
+python3 ../Compiler.py $1

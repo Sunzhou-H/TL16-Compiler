@@ -9,4 +9,5 @@ tok_file = file_name + '.tok'
 ast_file = file_name + '.ast.dot'
 
 if Lexer.lexer(tl_file, tok_file):
+    print('Lexer done!')
     Parser.parser(tok_file, ast_file)
