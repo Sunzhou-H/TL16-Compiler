@@ -4,7 +4,7 @@ current_tok = ''
 
 def parser(tok_file, ast_file):
     global current_tok
-
+    symbol_table = {}
     class ASTNode(object):
         def __init__(self):
             self.type = ''
@@ -107,7 +107,7 @@ def parser(tok_file, ast_file):
 
     # Visitor
     class Visitor(object):
-        def visit(self, node, *args, **kwargs):
+        def visit(self, node):
             meth = None
             for cls in node.__class__.__mro__:
                 meth_name = 'visit_' + cls.__name__
@@ -116,13 +116,85 @@ def parser(tok_file, ast_file):
                     break
             if not meth:
                 meth = self.generic_visit
-            return meth(node, *args, **kwargs)
+            return meth(node)
 
-        def generic_visit(self, node, *args, **kwargs):
-            print('generic_visit ' + node.__class__.__name__)
+        def generic_visit(self, node):
+            pass
 
-        def visit_Program(self, node, *args, **kwargs):
-            print('visit_Program ' + node.__class__.__name__)
+        def visit_Program(self, node):
+            pass
+
+        def visit_DeclList(self, node):
+            pass
+
+        def visit_Decl(self, node, *args, **kwargs):
+            pass
+
+        def visit_StmtList(self, node, *args, **kwargs):
+            pass
+
+        def visit_Stmt(self, node, *args, **kwargs):
+            pass
+
+        def visit_Assignment(self, node, *args, **kwargs):
+            pass
+
+        def visit_Readint(self, node, *args, **kwargs):
+            pass
+
+        def visit_If(self, node, *args, **kwargs):
+            pass
+
+        def visit_While(self, node, *args, **kwargs):
+            pass
+
+        def visit_Writeint(self, node, *args, **kwargs):
+            pass
+
+        def visit_Expr(self, node, *args, **kwargs):
+            pass
+
+        def visit_Factor(self, node, *args, **kwargs):
+            pass
+
+    # Type Check Visitor
+    class TypeCheckVisitor(Visitor):
+        def visit_Program(self, node):
+            visit_DeclList(node)
+            visit_Decl()
+
+        def visit_DeclList(self, node):
+            pass
+
+        def visit_Decl(self, node, *args, **kwargs):
+            pass
+
+        def visit_StmtList(self, node, *args, **kwargs):
+            pass
+
+        def visit_Stmt(self, node, *args, **kwargs):
+            pass
+
+        def visit_Assignment(self, node, *args, **kwargs):
+            pass
+
+        def visit_Readint(self, node, *args, **kwargs):
+            pass
+
+        def visit_If(self, node, *args, **kwargs):
+            pass
+
+        def visit_While(self, node, *args, **kwargs):
+            pass
+
+        def visit_Writeint(self, node, *args, **kwargs):
+            pass
+
+        def visit_Expr(self, node, *args, **kwargs):
+            pass
+
+        def visit_Factor(self, node, *args, **kwargs):
+            pass
 
     # Error
     class ParserError(Exception):
