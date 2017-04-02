@@ -7,7 +7,7 @@ def parser(tok_file, ast_file):
 
     class ASTNode(object):
         def __init__(self):
-            pass
+            self.type = ''
 
     # program(decl_list, stmt_list)
     class Program(ASTNode):
@@ -392,5 +392,6 @@ def parser(tok_file, ast_file):
     except ParserError:
         print('PARSER ERROR due to'+current_tok)
         return False
+    visitor = Visitor()
     with open(ast_file, 'w') as f_ast:
         pass
