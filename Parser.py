@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 current_tok = ''
+symbol_table = {}
 
 
 def parser(tok_file, ast_file):
     global current_tok
-    symbol_table = {}
+    global symbol_table
+
     class ASTNode(object):
         def __init__(self):
             self.type = ''
+            self.type_error = False
 
     # program(decl_list, stmt_list)
     class Program(ASTNode):
@@ -46,12 +49,12 @@ def parser(tok_file, ast_file):
         def __init__(self):
             super(ASTNode, self).__init__()
 
-    # if(cond, stmts, ec)
+    # if(cond, stmt_list, ec)
     class If(Stmt):
         def __init__(self):
             super(Stmt, self).__init__()
 
-    # while(cond, stmts)
+    # while(cond, stmt_list)
     class While(Stmt):
         def __init__(self):
             super(Stmt, self).__init__()
@@ -105,7 +108,7 @@ def parser(tok_file, ast_file):
         def __init__(self):
             super(Factor, self).__init__()
 
-    # Visitor
+    # Visitor Pattern
     class Visitor(object):
         def visit(self, node):
             meth = None
@@ -127,74 +130,128 @@ def parser(tok_file, ast_file):
         def visit_DeclList(self, node):
             pass
 
-        def visit_Decl(self, node, *args, **kwargs):
+        def visit_Decl(self, node):
             pass
 
-        def visit_StmtList(self, node, *args, **kwargs):
+        def visit_StmtList(self, node):
             pass
 
-        def visit_Stmt(self, node, *args, **kwargs):
+        def visit_Assignment(self, node):
             pass
 
-        def visit_Assignment(self, node, *args, **kwargs):
+        def visit_Readint(self, node):
             pass
 
-        def visit_Readint(self, node, *args, **kwargs):
+        def visit_If(self, node):
             pass
 
-        def visit_If(self, node, *args, **kwargs):
+        def visit_While(self, node):
             pass
 
-        def visit_While(self, node, *args, **kwargs):
+        def visit_Writeint(self, node):
             pass
 
-        def visit_Writeint(self, node, *args, **kwargs):
+        def visit_Expr(self, node):
             pass
 
-        def visit_Expr(self, node, *args, **kwargs):
+        def visit_Factor(self, node):
             pass
 
-        def visit_Factor(self, node, *args, **kwargs):
+        def visit_Ident(self, node):
+            pass
+
+        def visit_Num(self, node):
+            pass
+
+        def visit_Boollit(self, node):
             pass
 
     # Type Check Visitor
     class TypeCheckVisitor(Visitor):
         def visit_Program(self, node):
-            visit_DeclList(node)
-            visit_Decl()
+            if node.decl_list.decls:
+                self.visit(node.decl_list)
+            if node.stmt_list.stmts:
+                self.visit(node.stmt_list)
 
         def visit_DeclList(self, node):
-            pass
+            for de in node.decls:
+                self.visit(de)
 
-        def visit_Decl(self, node, *args, **kwargs):
-            pass
+        def visit_Decl(self, node):
+            global symbol_table
+            if node.ident in symbol_table:
+                print("TYPE ERROR due to identifier '"+node.ident+"' has been defined more than once")
+            symbol_table[node.ident] = node.type
 
-        def visit_StmtList(self, node, *args, **kwargs):
-            pass
+        def visit_StmtList(self, node):
+            for stmt in node.stmts:
+                self.visit(stmt)
 
-        def visit_Stmt(self, node, *args, **kwargs):
-            pass
+        def visit_Assignment(self, node):
+            l = self.visit(node.ident)
+            r = self.visit(node.modify)
+            if not (l and r):
+                return False
+            elif l != r:
+                node.type_error = True
+                print("TYPE ERROR due to '", l, ':=', r, "'")
 
-        def visit_Assignment(self, node, *args, **kwargs):
-            pass
+        def visit_Readint(self, node):
+            node.type = 'int'
+            return node.type
 
-        def visit_Readint(self, node, *args, **kwargs):
-            pass
+        def visit_If(self, node):
+            self.visit(node.cond)
+            if node.stmt_list.stmts:
+                self.visit(node.stmt_list)
+            if node.ec.stmts:
+                self.visit(node.ec)
 
-        def visit_If(self, node, *args, **kwargs):
-            pass
+        def visit_While(self, node):
+            self.visit(node.cond)
+            if node.stmt_list.stmts:
+                self.visit(node.stmt_list)
 
-        def visit_While(self, node, *args, **kwargs):
-            pass
+        def visit_Writeint(self, node):
+            out = self.visit(node.expr)
+            if not out:
+                return False
+            elif out != 'int':
+                node.type_error = True
 
-        def visit_Writeint(self, node, *args, **kwargs):
-            pass
+        def visit_Expr(self, node):
+            l = self.visit(node.left)
+            r = self.visit(node.right)
+            if not (l and r):
+                return False
+            elif 'bool' in (r, l):
+                node.type_error = True
+                print("TYPE ERROR due to '"+node.op+"'")
+                return False
+            elif node.__class__.__name__ == 'Comp':
+                node.type = 'bool'
+                return node.type
+            else:
+                node.type = 'int'
+                return node.type
 
-        def visit_Expr(self, node, *args, **kwargs):
-            pass
+        def visit_Ident(self, node):
+            t = symbol_table.get(node.name)
+            if t:
+                node.type = t
+                return t
+            else:
+                print('TYPE ERROR due to undefined identifier( ' + node.name + ')')
+                return False
 
-        def visit_Factor(self, node, *args, **kwargs):
-            pass
+        def visit_Num(self, node):
+            node.type = 'int'
+            return node.type
+
+        def visit_Boollit(self, node):
+            node.type = 'bool'
+            return node.type
 
     # Error
     class ParserError(Exception):
@@ -211,7 +268,7 @@ def parser(tok_file, ast_file):
     def token(tok):
         global current_tok
         if tok in current_tok:
-            print(current_tok)
+            # print(current_tok)
             try:
                 current_tok = next(source_toks)
             except StopIteration:
@@ -262,10 +319,10 @@ def parser(tok_file, ast_file):
     def type_tl():
         if current_tok == 'INT':
             token('INT')
-            return 'INT'
+            return 'int'
         elif current_tok == 'BOOL':
             token('BOOL')
-            return 'BOOL'
+            return 'bool'
         else:
             raise ParserError
 
@@ -325,7 +382,7 @@ def parser(tok_file, ast_file):
             i = If()
             i.cond = expression()
             token('THEN')
-            i.stmts = stmt_list()
+            i.stmt_list = stmt_list()
             i.ec = else_clause()
             token('END')
             return i
@@ -338,7 +395,7 @@ def parser(tok_file, ast_file):
             w = While()
             w.cond = expression()
             token('DO')
-            w.stmts = stmt_list()
+            w.stmt_list = stmt_list()
             token('END')
             return w
         else:
@@ -462,8 +519,9 @@ def parser(tok_file, ast_file):
         ast_tree = program()
         print(ast_tree)
     except ParserError:
-        print('PARSER ERROR due to'+current_tok)
+        print('PARSER ERROR due to '+current_tok)
         return False
-    visitor = Visitor()
+    visitor = TypeCheckVisitor()
+    visitor.visit(ast_tree)
     with open(ast_file, 'w') as f_ast:
         pass
