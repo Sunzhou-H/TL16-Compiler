@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 current_tok = ''
 symbol_table = {}
+node_num = 0
 
 
 def parser(tok_file, ast_file):
     global current_tok
     global symbol_table
+    global node_num
 
     class ASTNode(object):
         def __init__(self):
@@ -110,7 +112,7 @@ def parser(tok_file, ast_file):
 
     # Visitor Pattern
     class Visitor(object):
-        def visit(self, node):
+        def visit(self, node, *args, **kwargs):
             meth = None
             for cls in node.__class__.__mro__:
                 meth_name = 'visit_' + cls.__name__
@@ -119,66 +121,25 @@ def parser(tok_file, ast_file):
                     break
             if not meth:
                 meth = self.generic_visit
-            return meth(node)
+            return meth(node, *args, **kwargs)
 
-        def generic_visit(self, node):
-            pass
-
-        def visit_Program(self, node):
-            pass
-
-        def visit_DeclList(self, node):
-            pass
-
-        def visit_Decl(self, node):
-            pass
-
-        def visit_StmtList(self, node):
-            pass
-
-        def visit_Assignment(self, node):
-            pass
-
-        def visit_Readint(self, node):
-            pass
-
-        def visit_If(self, node):
-            pass
-
-        def visit_While(self, node):
-            pass
-
-        def visit_Writeint(self, node):
-            pass
-
-        def visit_Expr(self, node):
-            pass
-
-        def visit_Factor(self, node):
-            pass
-
-        def visit_Ident(self, node):
-            pass
-
-        def visit_Num(self, node):
-            pass
-
-        def visit_Boollit(self, node):
-            pass
+        def generic_visit(self, node, *args, **kwargs):
+            print('generic_visit ' + node.__class__.__name__)
 
     # Type Check Visitor
     class TypeCheckVisitor(Visitor):
-        def visit_Program(self, node):
+        def visit_Program(self, node, *args, **kwargs):
             if node.decl_list.decls:
                 self.visit(node.decl_list)
             if node.stmt_list.stmts:
                 self.visit(node.stmt_list)
 
-        def visit_DeclList(self, node):
+
+        def visit_DeclList(self, node, *args, **kwargs):
             for de in node.decls:
                 self.visit(de)
 
-        def visit_Decl(self, node):
+        def visit_Decl(self, node, *args, **kwargs):
             global symbol_table
             if node.ident in symbol_table:
                 print("TYPE ERROR due to identifier '"+node.ident+"' has been defined more than once")
@@ -521,7 +482,7 @@ def parser(tok_file, ast_file):
     except ParserError:
         print('PARSER ERROR due to '+current_tok)
         return False
-    visitor = TypeCheckVisitor()
-    visitor.visit(ast_tree)
+
     with open(ast_file, 'w') as f_ast:
-        pass
+        visitor = TypeCheckVisitor()
+        visitor.visit(ast_tree, f_ast)
