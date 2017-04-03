@@ -187,6 +187,7 @@ def parser(tok_file, ast_file):
             args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
             r = self.visit(node.modify, *args)
             if not (l and r):
+                args[0].write('  n' + str(current_num) + ' [label=":=",shape=box]'+'\n')
                 return False
             elif l != r:
                 node.type_error = True
@@ -211,7 +212,7 @@ def parser(tok_file, ast_file):
             self.visit(node.cond, *args)
             node_num += 1
             args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
-            self.visit(node.stmt_list)
+            self.visit(node.stmt_list, *args)
             if node.ec.stmts:
                 node_num += 1
                 args[0].write('  n' + str(current_num) + ' -> ' + 'n' + str(node_num) + '\n')
@@ -274,13 +275,13 @@ def parser(tok_file, ast_file):
         def visit_Ident(self, node, *args, **kwargs):
             global node_num
             args[0].write('  n' + str(node_num) + ' [label="' + node.name)
-            t = symbol_table.get(node.name, *args)
+            t = symbol_table.get(node.name)
             if t:
                 node.type = t
                 args[0].write(':' + node.type + '",shape=box]')
                 return t
             else:
-                print('TYPE ERROR due to undefined identifier( ' + node.name + ')')
+                print('TYPE ERROR due to undefined identifier (' + node.name + ')')
                 args[0].write('",shape=box,fillcolor="/pastel13/1"]'+'\n')
                 return False
 
