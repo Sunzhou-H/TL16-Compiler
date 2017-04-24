@@ -496,4 +496,4 @@ def parser(tok_file, ast_file):
         if t_visitor.is_type_error() or s_visitor.is_type_error():
             return False
         else:
-            return ast_tree
+            return ast_tree, symbol_table
