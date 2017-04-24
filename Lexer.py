@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import re
-FLAG_ILLEGAL_INT = 0
-FLAG_SCANNER_ERROR = 0
 
 
 def lexer(tl_file, tok_file):
-    global FLAG_ILLEGAL_INT
-    global FLAG_SCANNER_ERROR
+    flag_illegal_int = 0
+    flag_scanner_error = 0
     tl_dict = {'(': 'LP',
                ')': 'RP',
                ':=': 'ASGN',
@@ -45,17 +43,17 @@ def lexer(tl_file, tok_file):
     re_opr1 = re.compile(r'(\(|\)|;|\*|\+|-|=|<|>)')
 
     def match_token(key, f):
-        global FLAG_ILLEGAL_INT
+        global flag_illegal_int
         token = tl_dict.get(key)
         if token:
             pass
         elif re_num.match(key):
             try:
                 if int(key) > 2147483647:
-                    FLAG_ILLEGAL_INT = 1
+                    flag_illegal_int = 1
                     return False
             except ValueError:
-                FLAG_ILLEGAL_INT = 1
+                flag_illegal_int = 1
                 return False
             token = 'num(' + key + ')'
         elif re_boollit.match(key):
@@ -76,11 +74,11 @@ def lexer(tl_file, tok_file):
                     if not match_token(temp_key2, f_tok):
                         for temp_key3 in re.sub(re_opr1, r' \1 ', temp_key2).split():
                             if not match_token(temp_key3, f_tok):
-                                if FLAG_ILLEGAL_INT:
+                                if flag_illegal_int:
                                     print('SCANNER ERROR due to illegal integer \"'+temp_key3+'\"')
-                                    FLAG_SCANNER_ERROR = 1
-                                    FLAG_ILLEGAL_INT = 0
+                                    flag_scanner_error = 1
+                                    flag_illegal_int = 0
                                 else:
-                                    FLAG_SCANNER_ERROR = 1
+                                    flag_scanner_error = 1
                                     print('SCANNER ERROR due to \"'+temp_key3+'\"')
-    return FLAG_SCANNER_ERROR == 0
+    return flag_scanner_error == 0

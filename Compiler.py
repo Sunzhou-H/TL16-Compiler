@@ -2,6 +2,7 @@
 import sys
 import Lexer
 import Parser
+import CodeGenerator
 
 tl_file = sys.argv[1]
 file_name = tl_file.split('.')[0]
@@ -10,4 +11,6 @@ ast_file = file_name + '.ast.dot'
 
 if Lexer.lexer(tl_file, tok_file):
     print('Lexer done!')
-    Parser.parser(tok_file, ast_file)
+    ast_tree = Parser.parser(tok_file, ast_file)
+    if ast_tree:
+        CodeGenerator.code_generator()
