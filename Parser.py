@@ -31,7 +31,6 @@ def program():
         token('BEGIN')
         p.stmt_list = stmt_list()
         token('END')
-        print('Parser done!')
         return p
     else:
         raise ParserError
@@ -484,6 +483,8 @@ def parser(tok_file, ast_file):
     except ParserError:
         print('PARSER ERROR due to '+current_tok)
         return False
+    else:
+        print('Parser done!')
 
     with open(ast_file, 'w') as f_ast:
         # Symbol table

@@ -3,6 +3,7 @@ class ASTNode(object):
     def __init__(self):
         self.type = ''
         self.type_error = False
+        self.reg = ''
 
 
 # program(decl_list, stmt_list)

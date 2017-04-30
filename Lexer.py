@@ -81,4 +81,8 @@ def lexer(tl_file, tok_file):
                                 else:
                                     flag_scanner_error = 1
                                     print('SCANNER ERROR due to \"'+temp_key3+'\"')
-    return flag_scanner_error == 0
+    if flag_scanner_error == 0:
+        print('Lexer done!')
+        return True
+    else:
+        return False
