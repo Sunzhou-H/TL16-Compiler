@@ -157,13 +157,38 @@ class CodeVisitor(AST.DummyVisitor):
         self.f_s.write('\t.data\nnewline:\t.asciiz "\\n"\n\t.text\n\t.globl main\nmain:\n')
         self.f_s.write('\tli $fp, 0x7ffffffc\n')
         for ins in self.stream:
+            if not isinstance(ins, Label):
+                self.f_s.write('\t')
             self.f_s.write(ins.output()+'\n')
 
     def output_cfg(self):
-        for ins in self.stream:
-            print(ins.name, ins.block)
+        self.f_cfg.write('digraph graphviz {\n\tnode [shape = none];\n\tedge [tailport = s];\n')
+        self.f_cfg.write('\tentry\n')
+        self.f_cfg.write('\tsubgraph cluster {\n')
+        self.f_cfg.write('\tcolor="/x11/white"\n')
+        for b_index in range(1, self.stream[-1].block+1):
+            self.f_cfg.write('\tn' + str(b_index) + ' [label=<<table border="0">')
+            self.f_cfg.write('<tr><td border="1" colspan="4">B'+str(b_index)+'</td></tr>')
+            for ins in self.stream:
+                if ins.block == b_index:
+                    for tr in ins.output().split('\n\t'):
+                        self.f_cfg.write('<tr>')
+                        td4 = tr.split()
+                        if len(td4) < 4:
+                            for i in range(4-len(td4)):
+                                td4.append('')
+                        for td in td4:
+                            self.f_cfg.write('<td align="left">')
+                            self.f_cfg.write(td)
+                            self.f_cfg.write('</td>')
+                        self.f_cfg.write('</tr>')
+            self.f_cfg.write('</table>>,fillcolor="/x11/white",shape=box]\n')
         for edge in self.cfg_edges:
-            print(edge)
+            self.f_cfg.write('\tn'+str(edge[0])+' -> n'+str(edge[1])+'\n')
+        self.f_cfg.write('\t}\n')
+        self.f_cfg.write('\tentry -> n'+str(self.stream[0].block)+'\n')
+        self.f_cfg.write('\tn' + str(self.stream[-1].block) + ' -> exit\n')
+        self.f_cfg.write('}')
 
     def create_cfg(self):
         if isinstance(self.stream[0], Label):
@@ -220,24 +245,24 @@ class Instruction(object):
 
     def output(self):
         if self.name == 'readInt':
-            ins = '\tli $v0, 5' + '\n\tsyscall\n' + '\tmove '
+            ins = 'li $v0, 5' + '\n\tsyscall\n' + '\tmove '
             if self.args:
                 ins = ins + self.args[0].reg + ', $v0'
             else:
                 raise CodeError
             return ins
         elif self.name == 'writeInt':
-            ins = '\tli $v0, 1'+'\n'+'\tmove $a0, '
+            ins = 'li $v0, 1'+'\n'+'\tmove $a0, '
             if self.args:
                 ins = ins + self.args[0].reg + '\n\tsyscall'
             else:
                 raise CodeError
             return ins
         elif self.name == 'exit':
-            ins = '\tli $v0, 10\n\tsyscall'
+            ins = 'li $v0, 10\n\tsyscall'
             return ins
         else:
-            ins = '\t' + self.name
+            ins = self.name
             for arg in self.args:
                 if isinstance(arg, Register):
                     ins = ins + ' ' + str(arg.reg) + ','
