@@ -121,9 +121,10 @@ class CodeVisitor(AST.DummyVisitor):
             self.emit(Instruction('mul', r3, r1, r2))
         elif node.op == 'div':
             self.emit(Instruction('div', r3, r1, r2))
-        elif node.op == 'mod"':
+        elif node.op == 'mod':
             self.emit(Instruction('remu', r3, r1, r2))
         else:
+            print(node.op)
             raise CodeError
         node.reg = r3
 
@@ -162,6 +163,7 @@ class CodeVisitor(AST.DummyVisitor):
             self.f_s.write(ins.output()+'\n')
 
     def output_cfg(self):
+        # todo graph problem
         self.f_cfg.write('digraph graphviz {\n\tnode [shape = none];\n\tedge [tailport = s];\n')
         self.f_cfg.write('\tentry\n')
         self.f_cfg.write('\tsubgraph cluster {\n')
@@ -190,7 +192,7 @@ class CodeVisitor(AST.DummyVisitor):
         self.f_cfg.write('\tn' + str(self.stream[-1].block) + ' -> exit\n')
         self.f_cfg.write('}')
 
-    def create_cfg(self):
+    def create_cfg_graphviz(self):
         if isinstance(self.stream[0], Label):
             block_index = 0
         else:
@@ -217,24 +219,105 @@ class CodeVisitor(AST.DummyVisitor):
                     self.cfg_edges.append((pre_ins.block, ins.block))
             pre_ins = ins
 
+    def create_cfg_live(self):
+        for idx, ins in enumerate(self.stream):
+            if ins.name == 'j' and ins.args[0]:
+                ins.pred.add(idx-1)
+                ins.succ.add(self.stream.index(ins.args[0]))
+                self.stream[self.stream.index(ins.args[0])].pred.add(idx)
+            elif ins.name == 'beqz' and ins.args[1]:
+                ins.pred.add(idx - 1)
+                ins.succ.add(idx + 1)
+                ins.succ.add(self.stream.index(ins.args[1]))
+                self.stream[self.stream.index(ins.args[1])].pred.add(idx)
+            else:
+                if self.stream[idx-1].name != 'j':
+                    ins.pred.add(idx-1)
+                ins.succ.add(idx+1)
+        self.stream[0].pred.discard(-1)
+        self.stream[-1].succ.discard(len(self.stream))
+
+    def liveness(self):
+        self.create_cfg_live()
+        while True:
+            equal_flag = True
+            for ins in reversed(self.stream):
+                ins.live_in_save = ins.live_in
+                ins.live_out_save = ins.live_out
+                for i in ins.succ:
+                    ins.live_out = ins.live_out | self.stream[i].live_in
+                ins.live_in = ins.use | (ins.live_out - ins.define)
+                if (ins.live_in_save == ins.live_in) and (ins.live_out_save == ins.live_out):
+                    equal_flag = equal_flag and True
+                else:
+                    equal_flag = equal_flag and False
+            if equal_flag:
+                break
+
+    def coloring(self, reg_num):
+        self.liveness()
+        for ins in self.stream:
+            if ins.live_in:
+                for i in ins.live_in:
+                    i.adj = i.adj | (ins.live_in - {i})
+        graph = {}
+        for reg in Register.reg_list:
+            graph[reg] = set(reg.adj)
+        stack = []
+        while len(graph):
+            if all(len(graph.get(node)) >= reg_num for node in graph):
+                node = graph.popitem()[0]
+                stack.append(node)
+                for n in graph:
+                    graph.get(n).discard(node)
+            for node in graph:
+                if len(graph.get(node)) <= (reg_num-1):
+                    stack.append(node)
+                    graph.pop(node)
+                    for n in graph:
+                        graph.get(n).discard(node)
+                    break
+        while len(stack):
+            node = stack.pop()
+            colors_list = []
+            for reg in range(reg_num):
+                colors_list.append('$t'+str(reg))
+            for register in node.adj:
+                if register.reg in colors_list:
+                    colors_list.remove(register.reg)
+            if len(colors_list) == 0:
+                pass  # todo real spilling
+            else:
+                node.reg = colors_list.pop(0)
+
     def optimization(self):
         self.emit(Instruction('exit'))
-        self.create_cfg()
+        # i = 0
+        # for ins in self.stream:
+        #     print(i, end=':')
+        #     for l in ins.live_in:
+        #         print(' ('+l.name+')', end=' ')
+        #     i += 1
+        #     print()
+        self.coloring(10)
+        self.create_cfg_graphviz()
 
 
 class Register(object):
     register = 0
+    reg_list = []
 
     def __init__(self, name):
         self.name = name
-        self.reg = name
-        #   todo reg
+        self.reg = 'NULL'
+        self.adj = set()
 
     @classmethod
     def next(cls):
-        current = Register('r'+str(cls.register))
         cls.register += 1
-        return current
+        reg = Register('r'+str(cls.register))
+        cls.reg_list.append(reg)
+        return reg
 
 
 class Instruction(object):
@@ -242,6 +325,29 @@ class Instruction(object):
         self.name = name
         self.args = args
         self.block = -1
+        self.live_in = set()
+        self.live_out = set()
+        self.use = set()
+        self.define = set()
+        self.pred = set()
+        self.succ = set()
+        if len(args) == 3:
+            self.define.add(args[0])
+            self.use.add(args[1])
+            self.use.add(args[2])
+        elif name == 'li':
+            self.define.add(args[0])
+        elif name == 'move':
+            self.define.add(args[0])
+            self.use.add(args[1])
+        elif name == 'readInt':
+            self.define.add(args[0])
+        elif name == 'beqz':
+            self.use.add(args[0])
+        elif name == 'writeInt':
+            self.use.add(args[0])
+        else:
+            return
 
     def output(self):
         if self.name == 'readInt':
