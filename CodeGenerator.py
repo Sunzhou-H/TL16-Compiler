@@ -163,7 +163,6 @@ class CodeVisitor(AST.DummyVisitor):
             self.f_s.write(ins.output()+'\n')
 
     def output_cfg(self):
-        # todo graph problem
         self.f_cfg.write('digraph graphviz {\n\tnode [shape = none];\n\tedge [tailport = s];\n')
         self.f_cfg.write('\tentry\n')
         self.f_cfg.write('\tsubgraph cluster {\n')
@@ -286,20 +285,13 @@ class CodeVisitor(AST.DummyVisitor):
                 if register.reg in colors_list:
                     colors_list.remove(register.reg)
             if len(colors_list) == 0:
-                pass  # todo real spilling
+                node.reg = str(-4*int(node.name[1:]))+'($fp)'
             else:
                 node.reg = colors_list.pop(0)
 
     def optimization(self):
         self.emit(Instruction('exit'))
-        # i = 0
-        # for ins in self.stream:
-        #     print(i, end=':')
-        #     for l in ins.live_in:
-        #         print(' ('+l.name+')', end=' ')
-        #     i += 1
-        #     print()
-        self.coloring(10)
+        self.coloring(7)
         self.create_cfg_graphviz()
 
 
@@ -350,23 +342,69 @@ class Instruction(object):
             return
 
     def output(self):
+        temp_reg = ['$t7', '$t8', '$t9']
         if self.name == 'readInt':
             ins = 'li $v0, 5' + '\n\tsyscall\n' + '\tmove '
             if self.args:
-                ins = ins + self.args[0].reg + ', $v0'
+                if self.args[0].reg.startswith('-'):
+                    ins = ins + temp_reg[0] + ', $v0\n\t'+'sw '+temp_reg[0]+', '+self.args[0].reg
+                else:
+                    ins = ins + self.args[0].reg + ', $v0'
             else:
                 raise CodeError
             return ins
         elif self.name == 'writeInt':
-            ins = 'li $v0, 1'+'\n'+'\tmove $a0, '
             if self.args:
-                ins = ins + self.args[0].reg + '\n\tsyscall'
+                if self.args[0].reg.startswith('-'):
+                    ins = 'li $v0, 1\n\tlw '+temp_reg[0]+', '+self.args[0].reg+'\n\tmove $a0, '+temp_reg[0]+'\n\t' \
+                                                                                                            'syscall'
+                else:
+                    ins = 'li $v0, 1\n\tmove $a0, '+self.args[0].reg + '\n\tsyscall'
             else:
                 raise CodeError
             return ins
         elif self.name == 'exit':
             ins = 'li $v0, 10\n\tsyscall'
             return ins
+        elif self.name == 'li' and self.args[0].reg.startswith('-'):
+            ins = 'li '+temp_reg[0]+', '+str(self.args[1])+'\n\tsw '+temp_reg[0]+', '+self.args[0].reg
+            return ins
+        elif self.name == 'move' and (self.args[0].reg.startswith('-') or self.args[1].reg.startswith('-')):
+            r1 = self.args[0].reg
+            r2 = self.args[1].reg
+            ins_p = ''
+            ins_f = ''
+            if r1.startswith('-'):
+                ins_f += '\n\tsw '+temp_reg[0]+', '+r1
+                r1 = temp_reg[0]
+            if r2.startswith('-'):
+                ins_p += 'lw '+temp_reg[1]+', '+r2+'\n\t'
+                r2 = temp_reg[1]
+            ins = 'move '+r1+', '+r2
+            return ins_p+ins+ins_f
+        elif self.name == 'beqz' and self.args[0].reg.startswith('-'):
+            ins = 'lw '+temp_reg[0]+', '+self.args[0].reg+'\n\t'
+            ins = ins + 'beqz '+temp_reg[0]+', '+self.args[1].name
+            return ins
+        elif len(self.args) == 3 and (self.args[0].reg.startswith('-')
+                                      or self.args[1].reg.startswith('-')
+                                      or self.args[2].reg.startswith('-')):
+            r3 = self.args[0].reg
+            r1 = self.args[1].reg
+            r2 = self.args[2].reg
+            ins_p = ''
+            ins_f = ''
+            if r3.startswith('-'):
+                ins_f += '\n\tsw ' + temp_reg[2] + ', ' + r3
+                r3 = temp_reg[2]
+            if r1.startswith('-'):
+                ins_p += 'lw ' + temp_reg[0] + ', ' + r1 + '\n\t'
+                r1 = temp_reg[0]
+            if r2.startswith('-'):
+                ins_p += 'lw '+temp_reg[1]+', '+r2+'\n\t'
+                r2 = temp_reg[1]
+            ins = self.name + ' '+r3+', '+r1+', '+r2
+            return ins_p + ins + ins_f
         else:
             ins = self.name
             for arg in self.args:
