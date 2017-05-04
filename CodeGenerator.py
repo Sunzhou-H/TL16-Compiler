@@ -279,7 +279,7 @@ class CodeVisitor(AST.DummyVisitor):
         while len(stack):
             node = stack.pop()
             colors_list = []
-            for reg in range(reg_num):
+            for reg in reversed(range(reg_num)):
                 colors_list.append('$t'+str(reg))
             for register in node.adj:
                 if register.reg in colors_list:
