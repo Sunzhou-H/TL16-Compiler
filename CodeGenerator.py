@@ -356,10 +356,11 @@ class Instruction(object):
         elif self.name == 'writeInt':
             if self.args:
                 if self.args[0].reg.startswith('-'):
-                    ins = 'li $v0, 1\n\tlw '+temp_reg[0]+', '+self.args[0].reg+'\n\tmove $a0, '+temp_reg[0]+'\n\t' \
-                                                                                                            'syscall'
+                    ins = 'li $v0, 1\n\tlw '+temp_reg[0]+', '+self.args[0].reg + \
+                          '\n\tmove $a0, '+temp_reg[0]+'\n\tsyscall\n\tli $v0, 4\n\tla $a0, newline\n\tsyscall'
                 else:
-                    ins = 'li $v0, 1\n\tmove $a0, '+self.args[0].reg + '\n\tsyscall'
+                    ins = 'li $v0, 1\n\tmove $a0, '+self.args[0].reg + \
+                          '\n\tsyscall\n\tli $v0, 4\n\tla $a0, newline\n\tsyscall'
             else:
                 raise CodeError
             return ins
